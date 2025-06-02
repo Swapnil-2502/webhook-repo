@@ -23,14 +23,14 @@ def webhook():
     data = request.json
     event_type = request.headers.get('X-GitHub-Event')
     
-    print(f"📦 Received GitHub Event: {event_type}")
+    print(f"Received GitHub Event: {event_type}")
     
     if event_type == 'pull_request':
         handle_pull_request(data)
     elif event_type == 'push':
         handle_push_event(data)
     else:
-        print("⚠️ Unhandled event type:", event_type)
+        print("Unhandled event type:", event_type)
 
 
     return jsonify({"status": "received"}), 200
@@ -38,7 +38,7 @@ def webhook():
 def handle_push_event(data):
     for commit in data.get("commits", []):
         if collections.find_one({"request_id": commit.get("id")}):
-            print("⚠️ Skipping duplicate PUSH event for request_id:", commit.get("id"))
+            print("Skipping duplicate PUSH event for request_id:", commit.get("id"))
             continue
         
         event = {
@@ -49,7 +49,7 @@ def handle_push_event(data):
             "to_branch": data.get("ref").split("/")[-1],  # refs/heads/dev → dev
             "timestamp": commit.get("timestamp")
         }
-        print("✅ Inserting PUSH event:", event)
+        print("Inserting PUSH event:", event)
         collections.insert_one(event)
 
 def handle_pull_request(data):
@@ -72,7 +72,7 @@ def handle_pull_request(data):
         "timestamp": pr.get("created_at") if event_action == "PULL REQUEST" else pr.get("merged_at")
     }
     
-    print(f"✅ Inserting {event_action} event:", event)
+    print(f"Inserting {event_action} event:", event)
     collections.insert_one(event)
     
 
