@@ -1,13 +1,14 @@
 from flask import Flask,request, jsonify
-
 import os
 from datetime import datetime
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from flask_cors import CORS 
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 MongoDB_url = os.getenv("MONGODB_URL")
 client = MongoClient(MongoDB_url)
@@ -46,7 +47,7 @@ def handle_push_event(data):
             "author": commit.get("author", {}).get("name"),
             "action": "PUSH",
             "from_branch": None,
-            "to_branch": data.get("ref").split("/")[-1],  # refs/heads/dev → dev
+            "to_branch": data.get("ref").split("/")[-1],  
             "timestamp": commit.get("timestamp")
         }
         print("Inserting PUSH event:", event)
@@ -58,23 +59,31 @@ def handle_pull_request(data):
     
     if action_type == "opened":
         event_action = "PULL REQUEST"
+        author = pr.get("user", {}).get("login")
+        timestamp = pr.get("created_at")
     elif action_type == "closed" and pr.get("merged"):
         event_action = "MERGE"
+        author = pr.get("sender", {}).get("login") or pr.get("merged_by", {}).get("login")
+        timestamp = pr.get("created_at")
     else:
         return
     
     event = {
         "request_id": str(pr.get("id")),
-        "author": pr.get("user", {}).get("login"),
+        "author": author,
         "action": event_action,
         "from_branch": pr.get("head", {}).get("ref"),
         "to_branch": pr.get("base", {}).get("ref"),
-        "timestamp": pr.get("created_at") if event_action == "PULL REQUEST" else pr.get("merged_at")
+        "timestamp": timestamp
     }
     
     print(f"Inserting {event_action} event:", event)
     collections.insert_one(event)
     
+@app.route('/api/events_data')
+def get_all_events():
+    all_events = list(collections.find({},{'_id':0}))
+    return jsonify(all_events), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
